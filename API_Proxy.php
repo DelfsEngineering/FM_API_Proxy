@@ -90,17 +90,17 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, $api_body );
 // ======================================issue with this still
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // temp because server does not have cert installed
 
-// Mode specific settings
+// Mode specific additional settings
 switch ($api_mode) {
     case "GET":
-        // misc get stuff
+        // no misc get stuff
         break;
     case "POST":
         curl_setopt($ch, CURLOPT_POST, true ); 
         break;
     case "PUT":
         curl_setopt($ch, CURLOPT_PUT, true );
-		$handle = tmpfile();
+				$handle = tmpfile();
         fwrite($handle, $api_body);
         fseek($handle, 0);
         curl_setopt($ch, CURLOPT_INFILE, $handle);
@@ -108,7 +108,7 @@ switch ($api_mode) {
         break;
 	case "DELETE":
 		break;
-    default:
+  default:
 		die("Error: 'mode' not valid"); // Mode not found so help by telling dev
 }
 
