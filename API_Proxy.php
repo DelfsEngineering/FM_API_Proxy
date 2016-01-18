@@ -17,11 +17,13 @@ PARAMETERS:
 	api_url 	= * the creds and full URL being called eg: user:key@https://store-r1dssj.mybigcommerce.com/api/v2/time
 	api_user	= * Username or ID for basic auth
 	api_pass	= * password or key for basuc auth
+
 	
 	OPTIONAL
 	api_form	= XML or JSON for media response type (default: JSON)
-  	api_headers	= any needed data that will go into the headers, each header row separated by '~' tilde
+  api_headers	= any needed data that will go into the headers, each header row separated by '~' tilde
 	api_body	= XML or JSON body dada
+	api_timeout = number of seconds to wait for the connection, 60 if not passed
 
 RETURNS:
 raw data from the called API in the same Format
@@ -33,16 +35,22 @@ Charles Delfs - www.delfsengineering.ca
 MORE NOTES:
 	target server for this file must have an updates certs files in cURL see the following link
 	http://unitstep.net/blog/2009/05/05/using-curl-in-php-to-access-https-ssltls-protected-sites/
-	If an HTTP error happens (Not a 200 series error) then there is 
+	If an HTTP error happens (Not a 200 series error) then it is passed back
+	
+REVISIONS:
+	01/18/2016 - Added timeout control, php = infinity, $api_timeout as parameter
 
 **********************************************************/
 
+set_time_limit(0);// to infinity 
 // fetch url request params
+
 
 $api_headers 	= "";
 $headersArray = [];
 $api_body 		= "";
 $api_form		= "JSON";  // default if this is not passed
+$api_timeout 		= 60 ; // timeout seconds default if not passed, else use passed value
 
 // ============   convert all the REQUEST params into local $Vars ============
 foreach($_REQUEST as $key=>$value) {
@@ -58,6 +66,7 @@ if ( !isset($api_mode) or !isset($api_url) or !isset($api_user)  or !isset($api_
 	die("Error: Missing parameters");
 }
 
+
 // Convert Headers to array if any for cURL
 if (isset($api_headers)) {
 	$headers_array = explode("~" , $api_headers);
@@ -70,18 +79,18 @@ Array_push ( $headersArray, $api_form == "XML" ? "Accept: application/xml" : "Ac
 // Add any request parameters in from the Request array but leave out the ones we use locally
 $query  = $_REQUEST;
 // unset (remove) any local items that dont need to be passed through
-unset($query['api_mode'], $query['api_url'], $query['api_user'], $query['api_pass'], $query['api_form'], $query['api_headers'], $query['api_body'], $query['__utma'], $query['__utmz']);
+unset($query['api_mode'], $query['api_url'], $query['api_user'], $query['api_pass'], $query['api_form'], $query['api_headers'], $query['api_body'], $query['api_timeout'], $query['__utma'], $query['__utmz']);
 if (is_array($query)) {
 	$api_url .= '?' . http_build_query($query);  // add parameters to the URL
 }
 
 // ============ Make the Call ======================
 $ch = curl_init($api_url);  //open connection
-// curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0"); // if we want to pass a specific 
+// curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0"); // if we want to pass a specific browser agent
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1 );  	//optional, sends response to a variable
 // curl_setopt($curl, CURLOPT_HEADER, false ); 	//True if we are to include the header in the output from the foreign call
-curl_setopt($ch, CURLOPT_TIMEOUT, 60 );  		//set to 60 seconds from BC API Guide v1 PDF example execution time
-curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 60 );	// time to connect
+curl_setopt($ch, CURLOPT_TIMEOUT, $api_timeout );  		//set to 60 seconds 
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $api_timeout );	// time to connect
 curl_setopt($ch, CURLOPT_HTTPHEADER, $headersArray );  //load all header data
 curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $api_mode );  // get, post, put, Delete
 curl_setopt($ch, CURLOPT_USERPWD, "$api_user:$api_pass"); // add the basic auth cred to the header in base64
@@ -92,24 +101,24 @@ curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // temp because server does not
 
 // Mode specific additional settings
 switch ($api_mode) {
-    case "GET":
-        // no misc get stuff
-        break;
-    case "POST":
-        curl_setopt($ch, CURLOPT_POST, true ); 
-        break;
-    case "PUT":
-        curl_setopt($ch, CURLOPT_PUT, true );
-				$handle = tmpfile();
-        fwrite($handle, $api_body);
-        fseek($handle, 0);
-        curl_setopt($ch, CURLOPT_INFILE, $handle);
-        curl_setopt($ch, CURLOPT_INFILESIZE, strlen($api_body));
-        break;
+	case "GET":
+			// no misc get stuff
+			break;
+	case "POST":
+			curl_setopt($ch, CURLOPT_POST, true ); 
+			break;
+	case "PUT":
+			curl_setopt($ch, CURLOPT_PUT, true );
+			$handle = tmpfile();
+			fwrite($handle, $api_body);
+			fseek($handle, 0);
+			curl_setopt($ch, CURLOPT_INFILE, $handle);
+			curl_setopt($ch, CURLOPT_INFILESIZE, strlen($api_body));
+			break;
 	case "DELETE":
-		break;
+			break;
   default:
-		die("Error: 'mode' not valid"); // Mode not found so help by telling dev
+		die("Error: '&mod=' not valid"); // Mode not found so help by telling dev
 }
 
 $result = curl_exec($ch);  //execute post
